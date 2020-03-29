@@ -17,7 +17,10 @@ body {
   font-family: $font-family;
   -webkit-font-smoothing: antialiased;
   -webkit-text-size-adjust: none;
-  background-color: #eee;
+  // background-color: #eee;
+  background:url(https://source.unsplash.com/random/1600x900?wallpapers);
+  background-repeat: no-repeat;
+  opacity: 0.8;
   overflow: auto;
   padding-top: 5px;
   @media screen and (max-width: 1024px) {
