@@ -382,3 +382,21 @@ dd {
   display: block;
   margin-inline-start: 40px;
 }
+
+.w-img {
+  display: none;
+}
+
+.show_img .w-img {
+  position: absolute;
+  right: 50px;
+  margin-top: 50px;
+  width: 120px; 
+  height: 120px;
+  cursor: pointer;  // 鼠标悬浮时鼠标样式
+}
+
+.show_img:hover  .w-img {
+  display: block;
+  z-index: 9999; 
+}
