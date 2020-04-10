@@ -106,6 +106,7 @@ a {
   .name,
   .job,
   .info,
+  .self-assess,
   .contact {
     width: 50%;
     @media screen and (max-width: 720px) {
@@ -156,6 +157,11 @@ a {
   }
   .info {
     float: left;
+    line-height: 22px;
+  }
+  .self-assess {
+    float: left;
+    margin-top: 2em;
     line-height: 22px;
   }
   .contact {
