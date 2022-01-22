@@ -109,7 +109,7 @@ module.exports = {
       ]);
 
       // 重新发布到 ghpages
-      // await publishGhPages();
+      await publishGhPages();
     }),
   ]
 };
