@@ -2,11 +2,11 @@
 import html2Canvas from "html2canvas";
 import JsPDF from "jspdf";
 
-var downPdf = document.getElementById("btn-h2p");
-downPdf.onclick = function() {
+
+function h2pcustom () {
   console.log("开始转换PDF，并下载");
   html2canvas(document.body, {
-    onrendered: function(canvas) {
+    onrendered: function (canvas) {
       //返回图片dataURL，参数：图片格式和清晰度(0-1)
       var pageData = canvas.toDataURL("image/jpeg", 1.0);
 
@@ -23,7 +23,9 @@ downPdf.onclick = function() {
         (592.28 / canvas.width) * canvas.height
       );
 
-      pdf.save("stone.pdf");
+      pdf.save("resume.pdf");
     }
   });
-};
+}
+
+export default h2pcustom;
