@@ -70,8 +70,42 @@ module.exports = {
   entry: {
     main: './src/main.js',
   },
+  performance: {
+    // 简历静态站，放宽单文件限制为 1 MiB，超出时仅警示不报错
+    hints: 'warning',
+    maxAssetSize: 1024 * 1024,
+    maxEntrypointSize: 1024 * 1024,
+  },
   optimization: {
     minimize: true,
+    // 自动拆分 node_modules 中的大型三方库，避免主 chunk 过大
+    splitChunks: {
+      chunks: 'all',
+      minSize: 30000,
+      cacheGroups: {
+        // html2canvas 单独拆包（体积最大）
+        html2canvas: {
+          test: /[\\/]node_modules[\\/]html2canvas[\\/]/,
+          name: 'vendor.html2canvas',
+          chunks: 'all',
+          priority: 20,
+        },
+        // jspdf 单独拆包
+        jspdf: {
+          test: /[\\/]node_modules[\\/](jspdf|jspdf-autotable)[\\/]/,
+          name: 'vendor.jspdf',
+          chunks: 'all',
+          priority: 20,
+        },
+        // 其余 node_modules 合并为一个 vendors chunk
+        vendors: {
+          test: /[\\/]node_modules[\\/]/,
+          name: 'vendor.common',
+          chunks: 'all',
+          priority: 10,
+        },
+      },
+    },
     minimizer: [
       new TerserPlugin({
         terserOptions: {
@@ -115,12 +149,16 @@ module.exports = {
       const chromePath = findChrome();
       console.log('chromePath: '+ chromePath);
       console.log('outputPath: '+ outputPath);
-      spawnSync(chromePath, ['--headless', '--disable-gpu', `--print-to-pdf=${path.resolve(outputPath, 'resume.pdf')}`,
+      spawnSync(chromePath, [
+        '--headless',
+        '--disable-gpu',
+        '--print-to-pdf-no-header',      // 兼容旧版 Chrome
+        `--print-to-pdf=${path.resolve(outputPath, 'resume.pdf')}`,
         'https://yaojusheng.github.io/resume/' // 这里注意改成你的在线简历的网站
       ]);
 
       // 重新发布到 ghpages
-      await publishGhPages();
+      // await publishGhPages();
     }),
   ]
 };

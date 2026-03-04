@@ -1,13 +1,14 @@
 {
   "scripts": {
-    "dev": "webpack serve --open --hot",
+    "dev": "webpack-dev-server --open --hot",
     "build": "NODE_ENV=production webpack",
-    "pub": "NODE_ENV=production webpack --config webpack-dist.config.js && rm -rf .public"
+    "pub": "rm -rf .public && mkdir -p .public && NODE_ENV=production webpack --config webpack-dist.config.js"
   },
   "devDependencies": {
     "autoprefixer": "^10.4.24",
     "chrome-finder": "^1.0.1",
     "css-loader": "^7.1.4",
+    "cssnano": "^7.1.2",
     "end-webpack-plugin": "^4.0.0",
     "gh-pages": "^6.3.0",
     "html-webpack-plugin": "^5.6.3",
