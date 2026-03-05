@@ -154,7 +154,10 @@ function h2pcustom() {
 
     // 提取开源项目（不同结构）
     openSourceSection: function() {
-      var section = document.querySelector(".content-right .project");
+      var section = Array.from(document.querySelectorAll(".content-right .project")).find(function(candidate) {
+        var titleNode = candidate.querySelector(".section-title");
+        return titleNode && titleNode.textContent.trim().indexOf("开源项目") > -1;
+      });
       if (!section) return;
       
       var titleEl = section.querySelector(".section-title");
@@ -230,110 +233,95 @@ function h2pcustom() {
   extractors.toolSection();
   extractors.footer();
 
-  // 智能分页：测量元素高度并在适当位置插入分页标记
-  var pdfPageHeight = 841.89; // A4纸高度(pt)
-  var containerWidth = 595; // 容器宽度约等于A4宽度(pt) 
-  var scale = 2; // html2canvas 缩放比例
-  var pageHeightInPx = (pdfPageHeight * containerWidth / 595.28) - 20; // 预留边距
-  
-  var children = Array.from(renderContainer.children);
+  // 按块分页：先将元素分配到“页容器”，再逐页渲染，避免整图硬裁切造成文字断裂
+  function getElementTotalHeight(el) {
+    var rect = el.getBoundingClientRect();
+    var computed = window.getComputedStyle(el);
+    var marginTop = parseFloat(computed.marginTop) || 0;
+    var marginBottom = parseFloat(computed.marginBottom) || 0;
+    return rect.height + marginTop + marginBottom;
+  }
+
+  function createPageElement() {
+    var page = document.createElement("div");
+    page.className = "pdf-page";
+    page.style.cssText = "width:595px;background:#fff;padding:40px;box-sizing:border-box;overflow:hidden;";
+    return page;
+  }
+
+  var pageHost = document.createElement("div");
+  pageHost.id = "pdf-page-host";
+  pageHost.style.cssText = "position:absolute;left:-9999px;top:0;width:595px;background:#fff;";
+  document.body.appendChild(pageHost);
+
+  var maxPageHeightPx = 820;
+  var sourceBlocks = Array.from(renderContainer.children);
+  var pages = [];
+  var currentPage = createPageElement();
   var currentHeight = 0;
-  var pageBreakMarkers = [];
-  
-  children.forEach(function(child, index) {
-    var rect = child.getBoundingClientRect();
-    var elementHeight = rect.height;
-    
-    // 如果加上当前元素会超过一页高度，在前一个元素后插入分页标记
-    if (currentHeight + elementHeight > pageHeightInPx && currentHeight > 0) {
-      pageBreakMarkers.push(index);
-      currentHeight = elementHeight; // 重置高度计数器
-    } else {
-      currentHeight += elementHeight;
-    }
-  });
-  
-  // 在标记位置插入分页div
-  pageBreakMarkers.reverse().forEach(function(index) {
-    var pageBreak = document.createElement("div");
-    pageBreak.className = "page-break-marker";
-    pageBreak.style.cssText = "height:50px;page-break-after:always;break-after:page;";
-    renderContainer.insertBefore(pageBreak, children[index]);
-  });
+  pageHost.appendChild(currentPage);
+  pages.push(currentPage);
 
-  // 使用 html2canvas 截图渲染容器
-  return html2canvas(renderContainer, {
-    scale: 2,
-    useCORS: true,
-    backgroundColor: "#ffffff",
-    logging: false
-  }).then(function(canvas) {
-    // 清理临时容器
-    document.body.removeChild(renderContainer);
+  sourceBlocks.forEach(function(block, index) {
+    var nextBlock = sourceBlocks[index + 1];
 
-    var pdf = new JsPDF("p", "pt", "a4");
-    var pdfWidth = 595.28;
-    var pdfHeight = 841.89;
-    
-    // canvas 尺寸（已按 scale=2 放大）
-    var canvasWidth = canvas.width;
-    var canvasHeight = canvas.height;
-    
-    // 计算缩放比例：PDF 宽度 / Canvas 宽度
-    var ratio = pdfWidth / canvasWidth;
-    
-    // 每页在 canvas 上的实际高度（扣除缩放）
-    var pageHeightInCanvas = pdfHeight / ratio;
-    
-    // 需要的总页数
-    var totalPages = Math.ceil(canvasHeight / pageHeightInCanvas);
-    
-    console.log("Canvas尺寸:", canvasWidth, "x", canvasHeight, "总页数:", totalPages);
+    block.style.pageBreakInside = "avoid";
+    block.style.breakInside = "avoid";
 
-    // 逐页裁剪并添加到 PDF
-    for (var i = 0; i < totalPages; i++) {
-      // 当前页在 canvas 上的起始 y 坐标
-      var srcY = i * pageHeightInCanvas;
-      // 当前页的实际高度（最后一页可能不足）
-      var srcHeight = Math.min(pageHeightInCanvas, canvasHeight - srcY);
-      
-      // 创建临时 canvas 用于裁剪
-      var pageCanvas = document.createElement("canvas");
-      pageCanvas.width = canvasWidth;
-      pageCanvas.height = srcHeight;
-      var ctx = pageCanvas.getContext("2d");
-      
-      // 从原始 canvas 裁剪当前页
-      ctx.drawImage(
-        canvas,
-        0, srcY,              // 源起点
-        canvasWidth, srcHeight,  // 源尺寸
-        0, 0,                 // 目标起点
-        canvasWidth, srcHeight   // 目标尺寸
-      );
-      
-      // 转为图片数据
-      var pageImgData = pageCanvas.toDataURL("image/jpeg", 0.95);
-      
-      // 添加到 PDF（第一页无需 addPage）
-      if (i > 0) {
-        pdf.addPage();
-      }
-      
-      // 计算当前页在 PDF 中的高度
-      var pdfPageHeight = srcHeight * ratio;
-      pdf.addImage(pageImgData, "JPEG", 0, 0, pdfWidth, pdfPageHeight);
+    var blockHeight = getElementTotalHeight(block);
+    var requiredHeight = blockHeight;
+
+    if (/^H[2-4]$/.test(block.tagName) && nextBlock) {
+      requiredHeight += getElementTotalHeight(nextBlock);
     }
 
+    if (currentHeight > 0 && currentHeight + requiredHeight > maxPageHeightPx) {
+      currentPage = createPageElement();
+      pageHost.appendChild(currentPage);
+      pages.push(currentPage);
+      currentHeight = 0;
+    }
+
+    currentPage.appendChild(block);
+    currentHeight += blockHeight;
+  });
+
+  var pdf = new JsPDF("p", "pt", "a4");
+  var pdfWidth = 595.28;
+
+  return pages.reduce(function(chain, page, index) {
+    return chain.then(function() {
+      return html2canvas(page, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: "#ffffff",
+        logging: false
+      }).then(function(canvas) {
+        var canvasWidth = canvas.width;
+        var canvasHeight = canvas.height;
+        var ratio = pdfWidth / canvasWidth;
+        var targetHeight = canvasHeight * ratio;
+        var pageImgData = canvas.toDataURL("image/jpeg", 0.95);
+
+        if (index > 0) {
+          pdf.addPage();
+        }
+        pdf.addImage(pageImgData, "JPEG", 0, 0, pdfWidth, targetHeight);
+      });
+    });
+  }, Promise.resolve()).then(function() {
     pdf.save("resume.pdf");
   }).catch(function(err) {
-    // 清理临时容器（失败时也要清理）
-    if (renderContainer.parentNode) {
-      document.body.removeChild(renderContainer);
-    }
     console.error("PDF 生成失败：", err);
     alert("PDF 生成失败，请查看控制台错误信息");
     throw err;
+  }).finally(function() {
+    if (renderContainer.parentNode) {
+      document.body.removeChild(renderContainer);
+    }
+    if (pageHost.parentNode) {
+      document.body.removeChild(pageHost);
+    }
   });
 }
 
